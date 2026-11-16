@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Booking system</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <a class="brand" href="index.html">BizTools</a>
+        <a href="index.html">Home</a>
+        <a class="active" href="booking.html">Booking</a>
+        <a href="invoice.html">Invoice</a>
+    </nav>
+    <main>
+        <h1>Book an appointment</h1>
+        <div class="panel">
+            <div class="row">
+                <label>Your name <input id="name" placeholder="e.g. Naledi Pillay"></label>
+                <label>Phone number <input id="phone" type="tel" placeholder="e.g. 082 123 4567"></label>
+            </div>
+            <div class="row">
+                <label>
+                    Service
+                    <select id="service">
+                        <option value="Haircut|150">Haircut - R150</option>
+                        <option value="Colour|450">Colour - R450</option>
+                        <option value="Blow dry|120">Blow dry - R120</option>
+                        <option value="Braiding|600">Braiding - R600</option>
+                    </select>
+                </label>
+                <label>Date <input id="date" type="date"></label>
+                <label>Time <select id="time"></select></label>
+            </div>
+            <div class="actions"><button id="book">Book appointment</button></div>
+            <p class="msg" id="msg" role="status"></p>
+        </div>
+
+        <h2>Upcoming bookings</h2>
+        <div class="tablewrap">
+            <table class="stack">
+                <thead><tr><th>Date</th><th>Time</th><th>Name</th><th>Phone</th><th>Service</th><th></th></tr></thead>
+                <tbody id="list"></tbody>
+            </table>
+        </div>
+        <p class="empty" id="empty">No bookings yet. Fill in the form above to add the first one.</p>
+    </main>
+
+    <script>const TIMES = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00"];
+    const $ = id => document.getElementById(id);
+    let bookings = [];
+    try { bookings = JSON.parse(localStorage.getItem("biztools-bookings")) || []; } catch (e) { bookings = []; }
+
+    const today = new Date().toISOString().slice(0, 10);
+    $("date").min = today;
+    $("date").value = today;
+
+    function save() { localStorage.setItem("biztools-bookings", JSON.stringify(bookings)); }
+
+    function say(text, bad) {
+      $("msg").textContent = text;
+      $("msg").className = "msg " + (bad ? "error" : "ok");
+    }
+
+    function fillTimes() {
+      const date = $("date").value;
+      const taken = bookings.filter(b => b.date === date).map(b => b.time);
+      const current = $("time").value;
+      $("time").innerHTML = "";
+      TIMES.forEach(t => {
+        const o = document.createElement("option");
+        o.value = t;
+        o.textContent = taken.includes(t) ? t + " (taken)" : t;
+        o.disabled = taken.includes(t);
+        $("time").appendChild(o);
+      });
+      const free = TIMES.find(t => !taken.includes(t));
+      $("time").value = (current && !taken.includes(current)) ? current : (free || "");
+    }
+
+    function addBooking() {
+      const name = $("name").value.trim();
+      const phone = $("phone").value.trim();
+      const [service, price] = $("service").value.split("|");
+      const date = $("date").value;
+      const time = $("time").value;
+
+      if (!name) return say("Enter your name.", true);
+      if (!/^[0-9 +()-]{9,15}$/.test(phone)) return say("Enter a valid phone number (9 to 15 digits).", true);
+      if (!date || date < today) return say("Choose today or a future date.", true);
+      if (!time) return say("That day is fully booked. Choose another date.", true);
+      if (bookings.some(b => b.date === date && b.time === time)) return say("That time is already taken. Choose another.", true);
+
+      bookings.push({ name, phone, service, price, date, time });
+      bookings.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      save(); render(); fillTimes();
+      say("Booked: " + service + " on " + date + " at " + time + ".", false);
+      $("name").value = ""; $("phone").value = "";
+    }
+
+    function cancelBooking(b) {
+      bookings = bookings.filter(x => x !== b);
+      save(); render(); fillTimes();
+      say("Booking cancelled.", false);
+    }
+
+    function render() {
+      const list = $("list");
+      list.innerHTML = "";
+      $("empty").hidden = bookings.length > 0;
+      bookings.forEach(b => {
+        const tr = document.createElement("tr");
+        const labels = ["Date", "Time", "Name", "Phone", "Service"];
+        [b.date, b.time, b.name, b.phone, b.service + " (R" + b.price + ")"].forEach((text, n) => {
+          const td = document.createElement("td");
+          td.dataset.label = labels[n];
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+        const td = document.createElement("td");
+        const btn = document.createElement("button");
+        btn.className = "ghost";
+        btn.textContent = "Cancel";
+        btn.onclick = () => cancelBooking(b);
+        td.appendChild(btn);
+        tr.appendChild(td);
+        list.appendChild(tr);
+      });
+    }
+
+    $("book").onclick = addBooking;
+    $("date").onchange = fillTimes;
+    fillTimes(); render();</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+
+</body>
+</html>

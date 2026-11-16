@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Invoice generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <a class="brand" href="index.html">BizTools</a>
+        <a href="index.html">Home</a>
+        <a href="booking.html">Booking</a>
+        <a class="active" href="invoice.html">Invoice</a>
+    </nav>
+    <main>
+        <h1>Invoice <span id="invNo"></span></h1>
+        <div class="panel">
+            <div class="row">
+                <label>Your business name <input id="biz" placeholder="e.g. Glow Hair Studio"></label>
+                <label>Client name <input id="client" placeholder="e.g. Thandi Naidoo"></label>
+            </div>
+            <div class="row">
+                <label>Invoice date <input id="invDate" type="date"></label>
+                <label>Invoice number <input id="invNum" type="number" min="1"></label>
+            </div>
+        </div>
+
+        <div class="sheet">
+            <h2>Items</h2>
+            <div class="tablewrap">
+                <table class="stack">
+                    <thead><tr><th>Description</th><th>Qty</th><th>Price (R)</th><th>Line total</th><th class="noprint"></th></tr></thead>
+                    <tbody id="items"></tbody>
+                </table>
+            </div>
+            <div class="actions"><button class="ghost" id="add">Add item</button></div>
+
+            <div class="totals">
+                <div><span>Subtotal</span><span>R<span id="sub">0.00</span></span></div>
+                <div><span>VAT (15%)</span><span>R<span id="vat">0.00</span></span></div>
+                <div class="grand"><span>Total</span><span>R<span id="total">0.00</span></span></div>
+            </div>
+
+        </div>
+
+        <div class="actions" style="margin-top:28px">
+            <button id="print">Print or save as PDF</button>
+            <button class="ghost" id="reset">Start a new invoice</button>
+        </div>
+        <p class="msg noprint" id="msg" role="status"></p>
+    </main>
+
+    <script>
+            const VAT_RATE = 0.15;
+            const $ = id => document.getElementById(id);
+            const KEY = "biztools-invoice";
+
+            function money(n) { return n.toFixed(2); }
+
+            function addRow(desc = "", qty = 1, price = 0) {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td data-label="Description"><input class="d" placeholder="Description" aria-label="Description"></td>
+                <td data-label="Qty"><input class="q" type="number" min="1" step="1" aria-label="Quantity"></td>
+                <td data-label="Price (R)"><input class="p" type="number" min="0" step="0.01" aria-label="Price"></td>
+                <td class="line" data-label="Line total">R0.00</td>
+                <td class="noprint"><button class="ghost" aria-label="Remove item">Remove</button></td>`;
+              tr.querySelector(".d").value = desc;
+              tr.querySelector(".q").value = qty;
+              tr.querySelector(".p").value = price;
+              tr.querySelectorAll("input").forEach(i => i.oninput = calc);
+              tr.querySelector("button").onclick = () => { tr.remove(); calc(); };
+              $("items").appendChild(tr);
+              calc();
+            }
+
+            function calc() {
+              let sub = 0;
+              document.querySelectorAll("#items tr").forEach(tr => {
+                const q = Math.max(0, Number(tr.querySelector(".q").value) || 0);
+                const p = Math.max(0, Number(tr.querySelector(".p").value) || 0);
+                const line = q * p;
+                tr.querySelector(".line").textContent = "R" + money(line);
+                sub += line;
+              });
+              const vat = sub * VAT_RATE;
+              $("sub").textContent = money(sub);
+              $("vat").textContent = money(vat);
+              $("total").textContent = money(sub + vat);
+              $("invNo").textContent = "#" + ($("invNum").value || "");
+              persist();
+            }
+
+            function persist() {
+              const items = [...document.querySelectorAll("#items tr")].map(tr => ({
+                d: tr.querySelector(".d").value, q: tr.querySelector(".q").value, p: tr.querySelector(".p").value
+              }));
+              try {
+                localStorage.setItem(KEY, JSON.stringify({
+                  biz: $("biz").value, client: $("client").value, date: $("invDate").value, num: $("invNum").value, items
+                }));
+              } catch (e) {}
+            }
+
+            function load() {
+              let s = null;
+              try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+              $("invDate").value = (s && s.date) || new Date().toISOString().slice(0, 10);
+              $("invNum").value = (s && s.num) || 1;
+              if (s) { $("biz").value = s.biz || ""; $("client").value = s.client || ""; }
+              if (s && s.items && s.items.length) s.items.forEach(i => addRow(i.d, i.q, i.p));
+              else addRow();
+            }
+
+            function reset() {
+              const next = (Number($("invNum").value) || 0) + 1;
+              $("items").innerHTML = "";
+              $("client").value = "";
+              $("invNum").value = next;
+              addRow();
+              $("msg").textContent = "New invoice #" + next + " ready.";
+              $("msg").className = "msg ok";
+            }
+
+            ["biz", "client", "invDate", "invNum"].forEach(id => $(id).oninput = calc);
+            $("add").onclick = () => addRow();
+            $("print").onclick = () => window.print();
+            $("reset").onclick = reset;
+            load();
+    </script>
+</body>
+</html>
